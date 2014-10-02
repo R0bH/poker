@@ -1,4 +1,6 @@
 import numpy as np
+import bisect
+import matplotlib.pyplot as plt
 
 # function to calculate earnings per hour given
 # prizes, prob of each prize, entry fee ,win rate and number of games played per hour
@@ -25,6 +27,13 @@ def earnings_per_hour(prize,prob_prize,win_rate,entry,gph):
     return eph
 
 """ Main code - calculates earnings per hour for a given win rate and prize structure"""
+# read in spin_and_go data
+path='spin_and_go_odds'
+odds = np.loadtxt(path,unpack=True)
+
+# normalise odds for each pay out
+# ignore first column as prize factors
+for i in range(1,len(odds)):odds[i]/=np.sum(odds[i])
 
 # Define winrate
 # (Set as a range for illustrative purposes)
@@ -32,65 +41,49 @@ delta = 0.001
 win_rate = np.arange(0,1+delta,delta)
 
 # define entry fee (dollars)
-entry_fee = 1.
+entry_fee = [1.,3.,7.,15.,30]
 
 # games per hour
-gph = 7.
+gph = 10.
 
-# Define prob of getting a prize
-prob_prize  = np.zeros(6)
-prob_prize[0] = 9./10
-prob_prize[1] = (1-prob_prize[0])/1.8758
-prob_prize[2] = (1-prob_prize[0])/(2.*1.8758)
-prob_prize[3] = (1-prob_prize[0])/(4.*1.8758)
-prob_prize[4] = (1-prob_prize[0])/(8.*1.8758)
-prob_prize[5] = (1-prob_prize[0])/(1250.*1.8758)
 
-# Check probabilites sum to one
-if np.sum(prob_prize)!=1: print "error: sum prob != 1"
+for j in range(len(entry_fee)):
+    prize = np.zeros(len(odds[0]))
+    prize = odds[0]*entry_fee[j]
 
-# Define Prize Structure
-prize  = np.zeros(6)
-prize[0] = 2.
-prize[1] = 4.
-prize[2] = 6.
-prize[3] = 12.
-prize[4] = 24.
-prize[5] = 1200.
-
-# calculate earnings per hour based on winrate
-eph_vs_winrate=np.zeros(len(win_rate))
-for i in range(len(win_rate)):
-    eph_vs_winrate[i]=earnings_per_hour(prize,prob_prize,win_rate[i],entry_fee,gph)
-
-# find break even point (i.e. where eph = 0.i for a given win rate)
-import bisect
-break_point= win_rate[bisect.bisect(eph_vs_winrate,0.)]
-
-# find return at a given win rate (in this case 0.85)
-# change the value to your win rate for a given prize structure to see you earnins per hour
-spec_win_rate=1.
-arg = np.argwhere(np.logical_and((win_rate > (spec_win_rate-delta)),(win_rate< spec_win_rate+delta)))
-print arg
-print win_rate[-1]
-eph_val = eph_vs_winrate[arg]
-
-# plotting section
-import matplotlib.pyplot as plt
-# plot graph
-plt.plot(win_rate,eph_vs_winrate,label='earnings vs win rate')
-
-#plot vertical line at brak even point
-plt.plot( [break_point,break_point],[np.amin(eph_vs_winrate),0.],
-        color='r',label='break even at win rate of '+str(break_point))
-
-# plot horizontal line to show earnings per hour for a given win rate
-plt.plot([spec_win_rate,spec_win_rate],[np.amin(eph_vs_winrate),eph_val],color='k')
-plt.plot([0,spec_win_rate],[float(eph_val),eph_val],color='k'
-        ,label=str(float(eph_val))+' $ at '+str(spec_win_rate)+' win rate')
-
+    # calculate earnings per hour based on winrate
+    eph_vs_winrate=np.zeros(len(win_rate))
+    for i in range(len(win_rate)):
+        eph_vs_winrate[i]=earnings_per_hour(prize,odds[j+1],win_rate[i],entry_fee[j],gph)
+    
+    # find break even point (i.e. where eph = 0.0 for a given win rate)
+    break_point= win_rate[bisect.bisect(eph_vs_winrate,0.)]
+    
+    # find return at a given win rate (in this case 0.85)
+    # change the value to your win rate for a given prize structure to see you earnins per hour
+    spec_win_rate=0.85
+    arg = np.argwhere(np.logical_and((win_rate > (spec_win_rate-delta)),(win_rate< spec_win_rate+delta)))
+    eph_val = eph_vs_winrate[arg]
+    print "expected return with win rate of " +str(spec_win_rate)\
+            +" at "+str(gph)+" games per hour = "+str(float(eph_val))+" $"
+    # plotting section
+    # plot graph
+    plt.plot(win_rate,eph_vs_winrate,label='earnings vs win rate $'
+            +str(entry_fee[j])+' entry')
+    
+    #plot vertical line at brak even point
+    plt.plot( [break_point,break_point],[np.amin(eph_vs_winrate),0.],
+            color='r',label='break even at win rate of '
+            +str(break_point)+' $'+str(entry_fee[j])+' entry')
+    
+    # plot horizontal line to show earnings per hour for a given win rate
+    plt.plot([spec_win_rate,spec_win_rate],[np.amin(eph_vs_winrate),eph_val],color='k')
+    plt.plot([0,spec_win_rate],[float(eph_val),eph_val],color='k'
+            ,label=str(float(eph_val))+' $ at '+str(spec_win_rate)+' win rate')
+    
 # Graph labels and legend
-plt.legend(loc=6,prop={'size':8})
+#plt.legend(loc=2,prop={'size':10})
+plt.legend(loc=2)
 plt.ylabel("earnings per hour")
 plt.xlabel("win rate")
 plt.show()
